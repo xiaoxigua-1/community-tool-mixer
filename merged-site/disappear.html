@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>消失點 - 縮放之下的魔術</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2318181B'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%23D8B4FE'/%3E%3C/svg%3E">
+  <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+  <script src="https://unpkg.com/upng-js@2.1.0/UPNG.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <svg class="nav-logo" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="#18181B"/>
+          <circle cx="16" cy="16" r="8" fill="#D8B4FE"/>
+        </svg>
+        <span class="nav-title">Tools</span>
+      </a>
+      
+    </div>
+  </nav>
+
+  <main class="main">
+    <header class="page-header">
+      <span class="page-badge">影像處理</span>
+      <h1 class="page-title">消失點 (Vanishing Point)</h1>
+      <p class="page-subtitle">上傳圖片，產生棋盤格透明圖片。當 X 平台縮圖時，圖片會看起來模糊或消失。</p>
+      <p style="margin-top: 0.75rem; font-size: 0.875rem;">
+        By <a href="https://github.com/xxgiasonxx" style="color: var(--accent);">xxgiasonxx</a>
+        · <a href="index.html" style="color: var(--text-secondary);">回首頁</a>
+      </p>
+    </header>
+
+    <section id="upload-section">
+      <div id="drop-zone" class="upload-zone">
+        <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" style="display: none;">
+        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+        </svg>
+        <p class="upload-text">點擊或拖曳上傳圖片</p>
+        <p class="upload-hint">支援 JPEG, PNG, WebP (最大 10MB). 自動壓縮至 1MB 以內</p>
+      </div>
+    </section>
+
+    <section id="loading-section" class="hidden">
+      <div class="card" style="text-align: center; padding: 3rem;">
+        <div class="spinner"></div>
+        <p style="margin-top: 1rem; font-size: 1.125rem;">處理中...</p>
+        <p class="text-secondary" style="margin-top: 0.5rem;">正在進行色彩量化與棋盤格處理</p>
+      </div>
+    </section>
+
+    <section id="error-section" class="hidden">
+      <div class="card">
+        <div class="alert alert-error">
+          <svg style="width: 1.5rem; height: 1.5rem; flex-shrink: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span id="error-message">處理失敗</span>
+        </div>
+        <button class="btn btn-ghost" onclick="resetState()">重新上傳</button>
+      </div>
+    </section>
+
+    <section id="result-section" class="hidden">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <h2 style="font-size: 1.25rem; font-weight: 600;">處理結果</h2>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="download-btn">下載圖片</button>
+            <button class="btn btn-ghost" id="reset-btn">重新上傳</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="size-alert" class="alert alert-success hidden">
+        <span id="size-text"></span>
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 1.5rem;">
+        <div class="card">
+          <h3 class="card-title">原始圖片</h3>
+          <div class="image-preview" style="background-image: linear-gradient(45deg, #3F3F46 25%, transparent 25%), linear-gradient(-45deg, #3F3F46 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #3F3F46 75%), linear-gradient(-45deg, transparent 75%, #3F3F46 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0px; background-color: #27272A;">
+            <img id="original-preview" src="" alt="原始圖片">
+          </div>
+          <p id="original-meta" class="image-meta"></p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">處理結果</h3>
+          <div class="image-preview" style="background-image: linear-gradient(45deg, #3F3F46 25%, transparent 25%), linear-gradient(-45deg, #3F3F46 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #3F3F46 75%), linear-gradient(-45deg, transparent 75%, #3F3F46 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0px; background-color: #27272A;">
+            <img id="processed-preview" src="" alt="處理結果">
+          </div>
+          <p class="image-meta">棋盤格背景表示透明區域</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">效果說明</h3>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; color: var(--text-secondary);">
+          <p><strong class="text-accent">棋盤格原理：</strong>原圖像素與透明像素交錯排列</p>
+          <p><strong class="text-accent">縮放效果：</strong>當 X 平台進行縮圖時，相鄰的透明與原圖像素會被平均化，導致圖片看起來模糊或消失</p>
+          <p><strong class="text-accent">原圖效果：</strong>點擊放大後，由於取樣點剛好落在原圖像素上，可以正常顯示</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast">下載成功！</div>
+
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const uploadSection = document.getElementById('upload-section');
+    const loadingSection = document.getElementById('loading-section');
+    const errorSection = document.getElementById('error-section');
+    const resultSection = document.getElementById('result-section');
+    const toast = document.getElementById('toast');
+
+    let currentFileName = '';
+    let processedBlob = null;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleFile(file);
+    });
+
+    document.getElementById('download-btn').addEventListener('click', downloadImage);
+    document.getElementById('reset-btn').addEventListener('click', resetState);
+
+    function validateImageFile(file) {
+      const MAX_SIZE = 10 * 1024 * 1024;
+      if (file.size > MAX_SIZE) return '檔案大小必須小於 10MB';
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) return '僅支援 JPEG、PNG、WebP 格式';
+      return null;
+    }
+
+    function loadImageToPixels(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Failed to get canvas context'));
+              return;
+            }
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(0, 0, img.width, img.height);
+            resolve({
+              pixels: imageData.data,
+              width: img.width,
+              height: img.height,
+              dataUrl: canvas.toDataURL('image/png')
+            });
+          };
+          img.onerror = () => reject(new Error('Failed to load image'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function buildColorHistogram(rgba) {
+      const histogram = new Map();
+      for (let i = 0; i < rgba.length; i += 4) {
+        const r = rgba[i];
+        const g = rgba[i + 1];
+        const b = rgba[i + 2];
+        const key = (r << 16) | (g << 8) | b;
+        const existing = histogram.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          histogram.set(key, { r, g, b, count: 1 });
+        }
+      }
+      return histogram;
+    }
+
+    function computeBoxStats(colors) {
+      let minR = 255, minG = 255, minB = 255;
+      let maxR = 0, maxG = 0, maxB = 0;
+      for (const c of colors) {
+        if (c.r < minR) minR = c.r;
+        if (c.r > maxR) maxR = c.r;
+        if (c.g < minG) minG = c.g;
+        if (c.g > maxG) maxG = c.g;
+        if (c.b < minB) minB = c.b;
+        if (c.b > maxB) maxB = c.b;
+      }
+      return { colors, minR, maxR, minG, maxG, minB, maxB };
+    }
+
+    function splitBoxAtMedian(box) {
+      const rangeR = box.maxR - box.minR;
+      const rangeG = box.maxG - box.minG;
+      const rangeB = box.maxB - box.minB;
+      const channel = rangeR >= rangeG && rangeR >= rangeB ? 'r' : rangeG >= rangeB ? 'g' : 'b';
+      const sorted = [...box.colors].sort((a, b) => a[channel] - b[channel]);
+      let totalCount = 0;
+      for (const c of sorted) totalCount += c.count;
+      let halfCount = 0;
+      let splitIndex = 0;
+      for (let i = 0; i < sorted.length; i++) {
+        halfCount += sorted[i].count;
+        if (halfCount >= totalCount / 2) {
+          splitIndex = i + 1;
+          break;
+        }
+      }
+      if (splitIndex === 0 || splitIndex >= sorted.length) {
+        splitIndex = Math.floor(sorted.length / 2);
+      }
+      return [
+        computeBoxStats(sorted.slice(0, splitIndex)),
+        computeBoxStats(sorted.slice(splitIndex))
+      ];
+    }
+
+    function findBoxToSplit(boxes) {
+      let bestIndex = 0;
+      let bestCount = 0;
+      for (let i = 0; i < boxes.length; i++) {
+        let count = 0;
+        for (const c of boxes[i].colors) count += c.count;
+        if (count > bestCount) {
+          bestCount = count;
+          bestIndex = i;
+        }
+      }
+      return bestIndex;
+    }
+
+    function averageColor(colors) {
+      let r = 0, g = 0, b = 0, totalCount = 0;
+      for (const c of colors) {
+        r += c.r * c.count;
+        g += c.g * c.count;
+        b += c.b * c.count;
+        totalCount += c.count;
+      }
+      return [
+        Math.round(r / totalCount),
+        Math.round(g / totalCount),
+        Math.round(b / totalCount)
+      ];
+    }
+
+    function medianCutQuantization(rgba, numColors) {
+      const histogram = buildColorHistogram(rgba);
+      const colors = Array.from(histogram.values());
+      if (colors.length === 0) return [[0, 0, 0]];
+      if (colors.length <= numColors) {
+        return colors.map(c => [c.r, c.g, c.b]);
+      }
+      let boxes = [computeBoxStats(colors)];
+      while (boxes.length < numColors) {
+        const boxIndex = findBoxToSplit(boxes);
+        const box = boxes[boxIndex];
+        if (box.colors.length <= 1) break;
+        const [left, right] = splitBoxAtMedian(box);
+        boxes = [...boxes.slice(0, boxIndex), ...boxes.slice(boxIndex + 1), left, right];
+      }
+      return boxes.map(box => averageColor(box.colors));
+    }
+
+    function applyQuantization(rgba, palette) {
+      const result = new Uint8ClampedArray(rgba.length);
+      for (let i = 0; i < rgba.length; i += 4) {
+        const r = rgba[i];
+        const g = rgba[i + 1];
+        const b = rgba[i + 2];
+        let minDist = Infinity;
+        let closest = palette[0];
+        for (const [pr, pg, pb] of palette) {
+          const dist = (pr - r) ** 2 + (pg - g) ** 2 + (pb - b) ** 2;
+          if (dist < minDist) {
+            minDist = dist;
+            closest = [pr, pg, pb];
+          }
+        }
+        result[i] = closest[0];
+        result[i + 1] = closest[1];
+        result[i + 2] = closest[2];
+        result[i + 3] = 255;
+      }
+      return result;
+    }
+
+    function buildCheckerboard(quantized, width, height) {
+      const output = new Uint8ClampedArray(width * height * 4);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          if ((x + y) % 2 === 0) {
+            output[idx] = quantized[idx];
+            output[idx + 1] = quantized[idx + 1];
+            output[idx + 2] = quantized[idx + 2];
+            output[idx + 3] = 255;
+          } else {
+            output[idx] = 255;
+            output[idx + 1] = 255;
+            output[idx + 2] = 255;
+            output[idx + 3] = 0;
+          }
+        }
+      }
+      return output;
+    }
+
+    function upscaleImage(pixels, srcWidth, srcHeight, targetSize) {
+      const aspectRatio = srcHeight / srcWidth;
+      let newWidth = srcWidth;
+      let newHeight = srcHeight;
+      if (srcWidth < targetSize) {
+        newWidth = targetSize;
+        newHeight = Math.round(targetSize * aspectRatio);
+      }
+      if (newHeight < targetSize) {
+        newHeight = targetSize;
+        newWidth = Math.round(targetSize / aspectRatio);
+      }
+      if (newWidth === srcWidth && newHeight === srcHeight) {
+        return [new Uint8ClampedArray(pixels), srcWidth, srcHeight];
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return [new Uint8ClampedArray(pixels), srcWidth, srcHeight];
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      const srcCanvas = document.createElement('canvas');
+      srcCanvas.width = srcWidth;
+      srcCanvas.height = srcHeight;
+      const srcCtx = srcCanvas.getContext('2d');
+      if (!srcCtx) return [new Uint8ClampedArray(pixels), srcWidth, srcHeight];
+      const imageData = new ImageData(new Uint8ClampedArray(pixels), srcWidth, srcHeight);
+      srcCtx.putImageData(imageData, 0, 0);
+      ctx.drawImage(srcCanvas, 0, 0, newWidth, newHeight);
+      const scaled = ctx.getImageData(0, 0, newWidth, newHeight);
+      return [scaled.data, newWidth, newHeight];
+    }
+
+    function resizeImage(pixels, srcWidth, srcHeight, scale) {
+      const dstWidth = Math.round(srcWidth * scale);
+      const dstHeight = Math.round(srcHeight * scale);
+      const result = new Uint8ClampedArray(dstWidth * dstHeight * 4);
+      for (let y = 0; y < dstHeight; y++) {
+        for (let x = 0; x < dstWidth; x++) {
+          const srcX = Math.min(Math.round(x / scale), srcWidth - 1);
+          const srcY = Math.min(Math.round(y / scale), srcHeight - 1);
+          const srcIdx = (srcY * srcWidth + srcX) * 4;
+          const dstIdx = (y * dstWidth + x) * 4;
+          result[dstIdx] = pixels[srcIdx];
+          result[dstIdx + 1] = pixels[srcIdx + 1];
+          result[dstIdx + 2] = pixels[srcIdx + 2];
+          result[dstIdx + 3] = pixels[srcIdx + 3];
+        }
+      }
+      return [result, dstWidth, dstHeight];
+    }
+
+    async function handleFile(file) {
+      const error = validateImageFile(file);
+      if (error) {
+        showError(error);
+        return;
+      }
+
+      currentFileName = file.name;
+      showLoading();
+
+      try {
+        const imageData = await loadImageToPixels(file);
+        const { pixels, width, height, dataUrl } = imageData;
+
+        const MIN_SIZE = 1000;
+        const [upscaledPixels, upscaledWidth, upscaledHeight] =
+          (width < MIN_SIZE || height < MIN_SIZE)
+            ? upscaleImage(pixels, width, height, MIN_SIZE)
+            : [new Uint8ClampedArray(pixels), width, height];
+
+        let numColors = 32;
+        let scale = 1.0;
+        let currentWidth = upscaledWidth;
+        let currentHeight = upscaledHeight;
+        let currentPixels = new Uint8ClampedArray(upscaledPixels);
+        const MAX_SIZE = 1024 * 1024;
+
+        while (true) {
+          const palette = medianCutQuantization(currentPixels, numColors);
+          const quantized = applyQuantization(currentPixels, palette);
+          const checkerboard = buildCheckerboard(quantized, currentWidth, currentHeight);
+
+          const pngBuffer = UPNG.encode([checkerboard.buffer], currentWidth, currentHeight, 0);
+          const blob = new Blob([pngBuffer], { type: 'image/png' });
+
+          if (blob.size <= MAX_SIZE) {
+            processedBlob = blob;
+            const previewUrl = URL.createObjectURL(blob);
+            showResult({
+              originalPreview: dataUrl,
+              processedPreview: previewUrl,
+              width: currentWidth,
+              height: currentHeight,
+              sizeInMB: (blob.size / (1024 * 1024)).toFixed(2),
+              originalWidth: width,
+              originalHeight: height
+            });
+            return;
+          }
+
+          if (numColors > 2) {
+            numColors = Math.max(2, Math.floor(numColors / 2));
+          } else {
+            scale -= 0.1;
+            if (scale <= 0.3) {
+              showError('無法將圖片壓縮至 1MB 以內，請嘗試上傳更小或更簡單的圖片');
+              return;
+            }
+            [currentPixels, currentWidth, currentHeight] = resizeImage(
+              new Uint8ClampedArray(upscaledPixels),
+              upscaledWidth,
+              upscaledHeight,
+              scale
+            );
+          }
+        }
+      } catch (err) {
+        showError(err.message || '圖片處理失敗');
+      }
+    }
+
+    function showLoading() {
+      uploadSection.classList.add('hidden');
+      loadingSection.classList.remove('hidden');
+      errorSection.classList.add('hidden');
+      resultSection.classList.add('hidden');
+    }
+
+    function showError(message) {
+      uploadSection.classList.add('hidden');
+      loadingSection.classList.add('hidden');
+      errorSection.classList.remove('hidden');
+      resultSection.classList.add('hidden');
+      document.getElementById('error-message').textContent = message;
+    }
+
+    function showResult(data) {
+      uploadSection.classList.add('hidden');
+      loadingSection.classList.add('hidden');
+      errorSection.classList.add('hidden');
+      resultSection.classList.remove('hidden');
+
+      document.getElementById('original-preview').src = data.originalPreview;
+      document.getElementById('processed-preview').src = data.processedPreview;
+      document.getElementById('original-meta').textContent = `${data.originalWidth} x ${data.originalHeight} px`;
+      document.getElementById('size-text').textContent = `檔案大小: ${data.sizeInMB} MB (已壓縮至 1MB 以內)`;
+      document.getElementById('size-alert').classList.remove('hidden');
+    }
+
+    function resetState() {
+      if (processedBlob) {
+        const url = document.getElementById('processed-preview').src;
+        URL.revokeObjectURL(url);
+      }
+      processedBlob = null;
+      currentFileName = '';
+      fileInput.value = '';
+      uploadSection.classList.remove('hidden');
+      loadingSection.classList.add('hidden');
+      errorSection.classList.add('hidden');
+      resultSection.classList.add('hidden');
+    }
+
+    function downloadImage() {
+      if (!processedBlob) return;
+      const url = URL.createObjectURL(processedBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `x-tool-${currentFileName.replace(/\.[^/.]+$/, '')}.png`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast('下載成功！');
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1600);
+    }
+  </script>
+</body>
+</html>

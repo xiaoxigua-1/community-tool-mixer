@@ -1,0 +1,6 @@
+[submodule "disappear_image"]
+	path = disappear_image
+	url = git@github.com:xxgiasonxx/disappear_image.git
+[submodule "oshi-link"]
+	path = oshi-link
+	url = git@github.com:xiaoxigua-1/oshi-link.git

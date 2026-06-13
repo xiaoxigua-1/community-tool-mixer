@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>推鏈 - 將你的推し壓縮成連結</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/vditor/dist/index.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2318181B'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%23D8B4FE'/%3E%3C/svg%3E">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-container">
+      <a href="index.html" class="nav-brand">
+        <svg class="nav-logo" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="6" fill="#18181B"/>
+          <circle cx="16" cy="16" r="8" fill="#D8B4FE"/>
+        </svg>
+        <span class="nav-title">Tools</span>
+      </a>
+      
+    </div>
+  </nav>
+
+  <main class="main">
+    <header class="page-header">
+      <span class="page-badge">網址壓縮</span>
+      <h1 class="page-title">推鏈 (Oshi-link)</h1>
+      <p class="page-subtitle">將你的推し（最愛）壓縮進一個網址裡</p>
+      <p style="margin-top: 0.75rem; font-size: 0.875rem;">
+        By <a href="https://github.com/xiaoxigua-1" style="color: var(--accent);">xiaoxigua-1</a>
+        · <a href="index.html" style="color: var(--text-secondary);">回首頁</a>
+      </p>
+    </header>
+
+    <section id="creator-mode">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div style="margin-bottom: 1rem;">
+          <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">輸入你的清單內容 (Markdown)</label>
+          <div id="markdown-editor" style="border-radius: 0.75rem; overflow: hidden; border: 1px solid var(--border);"></div>
+        </div>
+
+        <div class="card" style="background: var(--bg-primary); padding: 1rem; margin-bottom: 1rem;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+            <p style="font-size: 0.875rem; color: var(--text-secondary);">
+              預估網址長度：
+              <span id="length-value" class="text-accent" style="font-weight: 700;">0</span>
+              <span style="color: var(--text-secondary); font-size: 0.75rem;"> / 2048</span>
+            </p>
+            <p id="length-hint" style="font-size: 0.75rem; color: var(--text-secondary);">可放心分享</p>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+          <button id="copy-button" class="btn btn-primary">複製推鏈 (Copy URL)</button>
+          <span id="copy-status" style="font-size: 0.75rem; color: var(--text-secondary);"></span>
+        </div>
+      </div>
+    </section>
+
+    <section id="viewer-mode" class="hidden">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <span class="badge badge-purple" style="margin-bottom: 1rem;">Viewer Mode</span>
+        <article id="decoded-output" class="markdown-content" style="border-radius: 0.75rem; border: 1px solid var(--border); background: var(--bg-primary); padding: 1rem; font-size: 0.9375rem; line-height: 1.8;"></article>
+        <div id="viewer-error" class="alert alert-error hidden" style="margin-top: 1rem;"></div>
+        <a href="/" class="btn btn-primary" style="margin-top: 1rem; display: inline-flex;">我也要建立 Oshi-link</a>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast">已複製推鏈！快去分享吧 ✨</div>
+
+  <script src="https://unpkg.com/lz-string@1.5.0/libs/lz-string.min.js"></script>
+  <script src="https://unpkg.com/vditor@3.11.2/dist/index.min.js"></script>
+  <script>
+    const URL_LIMIT = 2048;
+    const WARN_THRESHOLD = 1750;
+    const DANGER_THRESHOLD = 2000;
+
+    const editorRoot = document.querySelector('#markdown-editor');
+    const lengthValue = document.querySelector('#length-value');
+    const lengthHint = document.querySelector('#length-hint');
+    const copyButton = document.querySelector('#copy-button');
+    const copyStatus = document.querySelector('#copy-status');
+    const toast = document.querySelector('#toast');
+
+    const creatorMode = document.querySelector('#creator-mode');
+    const viewerMode = document.querySelector('#viewer-mode');
+    const viewerError = document.querySelector('#viewer-error');
+    const decodedOutput = document.querySelector('#decoded-output');
+
+    let editor;
+    let toastTimer;
+
+    const getBaseUrl = () => `${window.location.origin}${window.location.pathname}`;
+
+    const encodeText = (text) => {
+      if (!text) return '';
+      return LZString.compressToUTF16(text);
+    };
+
+    const decodeText = (str) => {
+      try {
+        return LZString.decompressFromUTF16(str);
+      } catch {
+        return null;
+      }
+    };
+
+    const buildShareUrl = (text) => {
+      if (!text.trim()) return getBaseUrl();
+      const compressed = encodeText(text);
+      const encoded = compressed.replace(/[\n\r\t\x00-\x1F#%]/g, (c) => {
+        const code = c.charCodeAt(0);
+        if (code === 10) return '%0A';
+        if (code === 13) return '%0D';
+        if (code === 9) return '%09';
+        if (code === 35) return '%23';
+        if (code === 37) return '%25';
+        return '%' + code.toString(16).padStart(2, '0').toUpperCase();
+      });
+      return `${getBaseUrl()}?q=${encoded}`;
+    };
+
+    const getEditorMarkdown = () => (editor ? editor.getValue() : '');
+
+    const updateLengthState = () => {
+      if (!editor) return;
+      const nextUrl = buildShareUrl(getEditorMarkdown());
+      const nextLength = nextUrl.length;
+      lengthValue.textContent = String(nextLength);
+      if (nextLength >= DANGER_THRESHOLD) {
+        lengthHint.textContent = '接近極限，分享可能失敗';
+        lengthHint.className = 'text-danger';
+        lengthValue.className = 'text-danger';
+      } else if (nextLength >= WARN_THRESHOLD) {
+        lengthHint.textContent = '已接近上限，建議精簡內容';
+        lengthHint.className = 'text-caution';
+        lengthValue.className = 'text-caution';
+      } else {
+        lengthHint.textContent = '可放心分享';
+        lengthHint.className = 'text-secondary';
+        lengthValue.className = 'text-accent';
+      }
+    };
+
+    const showToast = () => {
+      clearTimeout(toastTimer);
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
+    };
+
+    const copyShareUrl = async () => {
+      if (!editor) return;
+      const shareUrl = buildShareUrl(getEditorMarkdown());
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        copyStatus.textContent = '已複製到剪貼簿';
+        showToast();
+      } catch {
+        copyStatus.textContent = `複製失敗，請手動複製：${shareUrl}`;
+      }
+    };
+
+    const setupCreatorMode = () => {
+      editor = new Vditor('markdown-editor', {
+        height: 420,
+        mode: 'ir',
+        cache: { enable: false },
+        toolbarConfig: { pin: true },
+        toolbar: [
+          'headings',
+          'bold',
+          'italic',
+          'strike',
+          '|',
+          'list',
+          'ordered-list',
+          'check',
+          '|',
+          'quote',
+          'link',
+          '|',
+          'undo',
+          'redo'
+        ],
+        counter: { enable: false },
+        theme: 'dark',
+        preview: {
+          theme: { current: 'dark' }
+        },
+        placeholder: '例如：\n# 追番清單\n- 葬送的芙莉蓮\n- 藥師少女的獨語\n\n# 四月循環歌單\n- YOASOBI / アイドル',
+        input: () => updateLengthState(),
+        after: () => updateLengthState()
+      });
+      copyButton.addEventListener('click', copyShareUrl);
+    };
+
+    const loadPageMode = () => {
+      const query = new URLSearchParams(window.location.search);
+      const payload = query.get('q');
+      if (!payload) {
+        creatorMode.classList.remove('hidden');
+        viewerMode.classList.add('hidden');
+        setupCreatorMode();
+        return;
+      }
+      const decoded = decodeText(payload);
+      creatorMode.classList.add('hidden');
+      viewerMode.classList.remove('hidden');
+      if (!decoded) {
+        decodedOutput.classList.add('hidden');
+        viewerError.classList.remove('hidden');
+        viewerError.textContent = '這個推鏈的魔力已經消散囉！可能是網址被截斷或修改了。';
+        return;
+      }
+      decodedOutput.classList.remove('hidden');
+      viewerError.classList.add('hidden');
+      Vditor.preview(decodedOutput, decoded, {
+        mode: 'dark',
+        cdn: 'https://unpkg.com/vditor',
+        markdown: { breaks: true }
+      });
+    };
+
+    loadPageMode();
+  </script>
+</body>
+</html>
