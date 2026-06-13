@@ -462,3 +462,46 @@ body {
   color: var(--text-secondary);
   margin: 1em 0;
 }
+
+.vditor-reset {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+.vditor-reset p,
+.vditor-reset li {
+  color: var(--text-primary) !important;
+}
+
+.vditor-reset h1,
+.vditor-reset h2,
+.vditor-reset h3 {
+  color: var(--accent) !important;
+}
+
+.vditor-reset a {
+  color: var(--accent) !important;
+}
+
+.vditor-reset blockquote {
+  border-left: 3px solid var(--accent) !important;
+  color: var(--text-secondary) !important;
+}
+
+.vditor-reset code {
+  background: var(--bg-tertiary) !important;
+  color: var(--accent) !important;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
+
+.vditor-reset pre {
+  background: var(--bg-tertiary) !important;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.vditor-reset pre code {
+  background: transparent !important;
+  padding: 0 !important;
+}
