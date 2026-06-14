@@ -363,7 +363,7 @@ body {
 .badge {
   display: inline-block;
   padding: 0.25rem 0.5rem;
-  border-radius: 0.375rem;
+  border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -504,4 +504,116 @@ body {
 .vditor-reset pre code {
   background: transparent !important;
   padding: 0 !important;
+}
+
+.feature-screenshot {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.feature-screenshot img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.screenshot-placeholder {
+  position: absolute;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.feature-screenshot img:not([src=""]) + .screenshot-placeholder {
+  display: none;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.feature-item {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.feature-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  background: rgba(216, 180, 254, 0.15);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feature-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--accent);
+}
+
+.feature-item h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.feature-item p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.install-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.install-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.install-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.install-btn-chrome {
+  background: #4285f4;
+  color: white;
+}
+
+.install-btn-chrome:hover {
+  background: #3367d6;
+  transform: translateY(-1px);
+}
+
+.install-btn-firefox {
+  background: #ff7139;
+  color: white;
+}
+
+.install-btn-firefox:hover {
+  background: #e55a28;
+  transform: translateY(-1px);
 }
