@@ -72,7 +72,10 @@
 
   <script src="https://unpkg.com/lz-string@1.5.0/libs/lz-string.min.js"></script>
   <script src="https://unpkg.com/vditor@3.11.2/dist/index.min.js"></script>
-  <script>
+  <script type="module">
+    import { encode, decode } from 'https://cdn.jsdelivr.net/npm/base32768@5.0.1/src/index.min.js';
+    window.base32768 = { encode, decode };
+
     const URL_LIMIT = 2048;
     const WARN_THRESHOLD = 1750;
     const DANGER_THRESHOLD = 2000;
@@ -96,12 +99,14 @@
 
     const encodeText = (text) => {
       if (!text) return '';
-      return LZString.compressToUTF16(text);
+      const uint8 = LZString.compressToUint8Array(text);
+      return window.base32768.encode(uint8);
     };
 
     const decodeText = (str) => {
       try {
-        return LZString.decompressFromUTF16(str);
+        const uint8 = window.base32768.decode(str);
+        return LZString.decompressFromUint8Array(uint8);
       } catch {
         return null;
       }
@@ -109,16 +114,7 @@
 
     const buildShareUrl = (text) => {
       if (!text.trim()) return getBaseUrl();
-      const compressed = encodeText(text);
-      const encoded = compressed.replace(/[\n\r\t\x00-\x1F#%]/g, (c) => {
-        const code = c.charCodeAt(0);
-        if (code === 10) return '%0A';
-        if (code === 13) return '%0D';
-        if (code === 9) return '%09';
-        if (code === 35) return '%23';
-        if (code === 37) return '%25';
-        return '%' + code.toString(16).padStart(2, '0').toUpperCase();
-      });
+      const encoded = encodeText(text);
       return `${getBaseUrl()}?q=${encoded}`;
     };
 
@@ -129,18 +125,19 @@
       const nextUrl = buildShareUrl(getEditorMarkdown());
       const nextLength = nextUrl.length;
       lengthValue.textContent = String(nextLength);
+      lengthValue.className = 'text-accent font-bold';
       if (nextLength >= DANGER_THRESHOLD) {
         lengthHint.textContent = '接近極限，分享可能失敗';
-        lengthHint.className = 'text-danger';
-        lengthValue.className = 'text-danger';
+        lengthHint.className = 'text-xs font-semibold text-danger';
+        lengthValue.className = 'text-danger font-bold';
       } else if (nextLength >= WARN_THRESHOLD) {
         lengthHint.textContent = '已接近上限，建議精簡內容';
-        lengthHint.className = 'text-caution';
-        lengthValue.className = 'text-caution';
+        lengthHint.className = 'text-xs font-semibold text-caution';
+        lengthValue.className = 'text-caution font-bold';
       } else {
         lengthHint.textContent = '可放心分享';
-        lengthHint.className = 'text-secondary';
-        lengthValue.className = 'text-accent';
+        lengthHint.className = 'text-xs font-medium text-secondary';
+        lengthValue.className = 'text-accent font-bold';
       }
     };
 
